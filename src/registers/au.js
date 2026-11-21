@@ -121,11 +121,11 @@ export const abr = {
       total: (body.Names ?? []).length,
       matches: (body.Names ?? []).map((n) => ({
         name: n.Name,
-        status: n.AbnStatus ?? (n.IsCurrent ? 'Active' : 'Cancelled'),
+        status: n.IsCurrent ? 'Current name' : 'Former name',
         type: n.NameType,
         id: n.Abn,
         url: abrUrl(n.Abn),
-        details: { state: n.State, postcode: n.Postcode, score: n.Score },
+        details: { state: n.State, postcode: n.Postcode, score: n.Score, abnStatusCode: n.AbnStatus },
       })),
     };
   },

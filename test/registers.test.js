@@ -63,10 +63,11 @@ test('NZBN: subscription key header and mapping', async () => {
 });
 
 test('ABN Lookup: JSONP and API errors', async () => {
-  stubFetch(() => new Response('callback({"Names":[{"Abn":"88000014675","Name":"WOOLWORTHS GROUP LIMITED","NameType":"Entity Name","AbnStatus":"Active","State":"NSW","Postcode":"2000","Score":100}]})'));
+  stubFetch(() => new Response('callback({"Names":[{"Abn":"88000014675","Name":"WOOLWORTHS GROUP LIMITED","NameType":"Entity Name","AbnStatus":"0000000001","IsCurrent":true,"State":"NSW","Postcode":"2000","Score":100}]})'));
   const ok = await checkName('Woolworths', { countries: ['AU'], env: { ABR_GUID: 'g' } });
   const abr = ok.results.find((x) => x.id === 'au-abr');
   assert.equal(abr.status, 'ok');
+  assert.equal(abr.matches[0].status, 'Current name');
   assert.equal(abr.matches[0].url, 'https://abr.business.gov.au/ABN/View?abn=88000014675');
 
   stubFetch(() => new Response('callback({"Message":"The GUID entered is not recognised as a Registered Party","Names":[]})'));

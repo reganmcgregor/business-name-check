@@ -64,7 +64,9 @@ export function classify(query, candidate) {
   const c = nameKey(candidate);
   if (!q || !c) return 'related';
   if (q === c || q.replace(/ /g, '') === c.replace(/ /g, '')) return 'exact';
-  if (containsTokens(c, q) || (c.length >= 4 && containsTokens(q, c))) return 'close';
+  if (containsTokens(c, q)) return 'close';
+  // A short candidate inside a longer query (HEAT in "heat and chill") only counts if it is most of the query.
+  if (c.length >= 4 && c.length >= q.length * 0.6 && containsTokens(q, c)) return 'close';
   if (similarity(q.replace(/ /g, ''), c.replace(/ /g, '')) >= 0.8) return 'close';
   const qt = q.split(' ');
   const ct = new Set(c.split(' '));

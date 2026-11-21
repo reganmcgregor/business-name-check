@@ -26,6 +26,11 @@ test('classify: close', () => {
   assert.equal(classify('Heat Chill', 'Chill and Heat Co'), 'close');
 });
 
+test('classify: a short name inside a long query is only related', () => {
+  assert.equal(classify('Heat & Chill', 'HEAT'), 'related');
+  assert.equal(classify('Heat Chill Co', 'Heat Chill Pty'), 'exact');
+});
+
 test('classify: related', () => {
   assert.equal(classify('Woolworths', 'Coles Supermarkets'), 'related');
   assert.equal(classify('', 'Anything'), 'related');
