@@ -5,7 +5,7 @@ Check whether a business or brand name is already taken, on the official busines
 Give it a name. It prints exact and close matches from each register, with a link to the official record. It can also print JSON, so an AI agent, a script or an n8n workflow can call it.
 
 ```bash
-npx github:reganmcgregor/business-name-check "Heat & Chill"
+npx business-name-check "Heat & Chill"
 ```
 
 It needs Node 20.12 or newer, has no dependencies, and runs with no API keys at all. Registers that need a key skip themselves with a message saying where to get one.
@@ -45,8 +45,14 @@ Notes on the registers that need a key:
 ## Install and usage
 
 ```bash
-# Run without installing
+# Run without installing (from npm)
+npx business-name-check "Heat & Chill"
+
+# Or straight from GitHub
 npx github:reganmcgregor/business-name-check "Heat & Chill"
+
+# Or install it globally
+npm install -g business-name-check
 
 # Or clone it
 git clone https://github.com/reganmcgregor/business-name-check.git
@@ -89,7 +95,7 @@ business-name-check --list
 Run it with the Execute Command node (or any shell step) and parse the JSON:
 
 ```bash
-npx github:reganmcgregor/business-name-check "{{ $json.name }}" --country au --json
+npx business-name-check "{{ $json.name }}" --country au --json
 ```
 
 You can also import it as a module: `import { checkName } from 'business-name-check'`.
