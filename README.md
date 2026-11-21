@@ -23,7 +23,6 @@ It needs Node 20.12 or newer, has no dependencies, and runs with no API keys at 
 | United Kingdom | Companies House | Companies and LLPs | Free API key | Needs key |
 | New Zealand | NZBN register | Companies, trusts, sole traders with an NZBN | Free subscription key | Needs key |
 | United States | SEC EDGAR company list | SEC registrants only | Your own User-Agent string | Needs a contact string |
-| United States | OpenCorporates | State registers, aggregated | Token | Needs key (see notes) |
 
 ### What it does not cover
 
@@ -32,7 +31,7 @@ These registers have no open search API, so the tool prints a link for you to ch
 - **UK IPO trade marks.** The search site blocks automated access with a captcha, and there is no public API.
 - **IPONZ (NZ trade marks).** IPONZ does offer a trade mark search API (`POST /trademarksearch`), through the same MBIE developer portal as the NZBN. You subscribe with your RealMe login, and the endpoint definition is only visible once you are signed in, so it is not scripted here yet. Pull requests welcome if you have access.
 - **USPTO trade marks.** The USPTO's open APIs cover case status and bulk downloads, not name search. Its search site is not an open API.
-- **US state registers.** There is no national US business register. Each state runs its own, and most (including Delaware) have no free API and use captchas. OpenCorporates aggregates many of them, but it is a third party and not complete. The tool links to the NASS directory so you can find the right state.
+- **US state registers.** There is no national US business register. Each state runs its own, and most (including Delaware) have no free API and use captchas. The tool links to the NASS directory so you can find the right state. OpenCorporates aggregates many state registers, but it is a paid API with internal-use licence terms, so it is not included.
 
 Also not covered: common-law (unregistered) trade mark use, domain names, social handles, company names in countries other than the four above, and sound-alike or meaning-alike names.
 
@@ -40,7 +39,6 @@ Notes on the registers that need a key:
 
 - **IP Australia** gives you a client ID and secret once you create an application on their developer portal and request access to the Australian Trade Mark Search API. The portal's own text says approval can take a few days, but mine was approved on the spot. The tool searches registered and pending marks only (removed and lapsed marks are left out). The search returns trade mark numbers, so the tool then fetches each record, newest first, up to 60 by default (raise it with `--limit`). When a name has more live marks than that, the output says how many it checked.
 - **SEC EDGAR** has no name-search API. The tool downloads the SEC's public company list once a day and filters it locally. The SEC asks every automated client to identify itself with a name and email in the User-Agent, so the tool asks you for yours rather than inventing one.
-- **OpenCorporates** gives free keys to public-benefit and open-data users. Commercial use needs a paid plan. Check their terms before you use it.
 
 ## Install and usage
 
@@ -111,7 +109,6 @@ Copy `.env.example` to `.env` and fill in what you have, or run `business-name-c
 | `COMPANIES_HOUSE_API_KEY` | Create an account on the [Companies House developer hub](https://developer.company-information.service.gov.uk/), register an application and create a REST key. Free. |
 | `NZBN_SUBSCRIPTION_KEY` | Sign up on the [NZBN API portal](https://portal.api.business.govt.nz/) and subscribe to the NZBN API product. Free, approval can take a short while. Set `NZBN_ENV=sandbox` to use the sandbox. |
 | `SEC_USER_AGENT` | Your own name and email, for example `Your Name you@example.com`. See the [SEC's access rules](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data). |
-| `OPENCORPORATES_API_TOKEN` | [OpenCorporates API accounts](https://opencorporates.com/api_accounts/new). Free for public-benefit use, paid otherwise. |
 
 ## Fair use and rate limits
 
@@ -124,7 +121,6 @@ The tool is a polite client: it waits at least 250 ms between requests to the sa
 | ABN Lookup | Fair use under the terms you accept when you register for the GUID. Do not hammer it. |
 | NZBN | Throttled per subscription. Retries on 429. |
 | IP Australia | 600 requests per minute on the base tier. Each run makes up to about 60 record fetches. |
-| OpenCorporates | Depends on your plan. |
 | data.gov.au (ASIC) | No published limit. The tool makes about four requests per run. |
 
 You are responsible for using each register within its terms. In particular, do not use results to build a bulk copy of any register.

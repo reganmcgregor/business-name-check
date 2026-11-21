@@ -53,36 +53,6 @@ export const secEdgar = {
   },
 };
 
-export const openCorporates = {
-  id: 'us-opencorporates',
-  country: 'US',
-  kind: 'business',
-  label: 'OpenCorporates (all US states)',
-  env: ['OPENCORPORATES_API_TOKEN'],
-  signup: 'https://opencorporates.com/api_accounts/new',
-  coverage: 'Aggregates state business registers. Free keys are for public-benefit and open-data use; commercial use needs a paid plan.',
-  async search(name, env, { limit }) {
-    const url = new URL('https://api.opencorporates.com/v0.4/companies/search');
-    url.searchParams.set('q', name);
-    url.searchParams.set('country_code', 'us');
-    url.searchParams.set('per_page', String(Math.min(Math.max(limit, 1), 100)));
-    url.searchParams.set('api_token', env.OPENCORPORATES_API_TOKEN);
-    const res = await request(url.toString());
-    const r = res.json().results;
-    return {
-      total: r.total_count ?? r.companies.length,
-      matches: r.companies.map(({ company: c }) => ({
-        name: c.name,
-        status: c.current_status ?? (c.inactive ? 'Inactive' : 'Active'),
-        type: c.company_type,
-        id: `${c.jurisdiction_code}/${c.company_number}`,
-        url: c.opencorporates_url,
-        details: { jurisdiction: c.jurisdiction_code, incorporated: c.incorporation_date, dissolved: c.dissolution_date },
-      })),
-    };
-  },
-};
-
 export const usManual = [
   { label: 'USPTO trademark search (no open search API)', url: () => 'https://tmsearch.uspto.gov/search/search-information' },
   { label: 'Delaware entity name search (captcha-protected)', url: () => 'https://icis.corp.delaware.gov/ecorp/entitysearch/namesearch.aspx' },

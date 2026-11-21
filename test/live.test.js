@@ -13,7 +13,7 @@ const TAKEN = [
   ['AU', 'Woolworths', ['au-asic-business-names', 'au-asic-companies', 'au-abr', 'au-ip-australia']],
   ['UK', 'Tesco', ['uk-companies-house']],
   ['NZ', 'Fonterra', ['nz-nzbn']],
-  ['US', 'Walmart', ['us-sec-edgar', 'us-opencorporates']],
+  ['US', 'Walmart', ['us-sec-edgar']],
 ];
 const FREE = 'Zqxvlorn Quillmark Brightfen';
 

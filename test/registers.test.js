@@ -90,13 +90,6 @@ test('401 is reported as rejected credentials, not a crash', async () => {
   assert.match(r.results[0].reason, /credentials/);
 });
 
-test('OpenCorporates maps results', async () => {
-  stubFetch(() => json({ results: { total_count: 1, companies: [{ company: { name: 'WALMART INC.', jurisdiction_code: 'us_de', company_number: '1', opencorporates_url: 'https://opencorporates.com/companies/us_de/1', current_status: 'Good Standing' } }] } }));
-  const r = await checkName('Walmart', { countries: ['US'], env: { OPENCORPORATES_API_TOKEN: 't' } });
-  const oc = r.results.find((x) => x.id === 'us-opencorporates');
-  assert.equal(oc.matches[0].match, 'exact');
-});
-
 test('IP Australia: token, quick search, detail fetch', async () => {
   stubFetch((url) => {
     if (url.endsWith('/access_token')) return json({ access_token: 'tok' });

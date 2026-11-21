@@ -9,7 +9,6 @@ const FIELDS = [
   { key: 'COMPANIES_HOUSE_API_KEY', label: 'UK Companies House API key', country: 'UK', secret: true },
   { key: 'NZBN_SUBSCRIPTION_KEY', label: 'NZ NZBN subscription key', country: 'NZ', secret: true },
   { key: 'SEC_USER_AGENT', label: 'US SEC User-Agent (your name and email)', country: 'US', secret: false },
-  { key: 'OPENCORPORATES_API_TOKEN', label: 'US OpenCorporates API token', country: 'US', secret: true },
 ];
 
 function ask(prompt, hidden) {

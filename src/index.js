@@ -2,13 +2,13 @@ import { classify, nameKey, rankMatches } from './match.js';
 import { abr, asicBusinessNames, asicCompanies, auManual, ipAustralia } from './registers/au.js';
 import { companiesHouse, ukManual } from './registers/uk.js';
 import { nzbn, nzManual } from './registers/nz.js';
-import { openCorporates, secEdgar, usManual } from './registers/us.js';
+import { secEdgar, usManual } from './registers/us.js';
 
 export const REGISTERS = [
   asicBusinessNames, asicCompanies, abr, ipAustralia,
   companiesHouse,
   nzbn,
-  secEdgar, openCorporates,
+  secEdgar,
 ];
 
 export const MANUAL = { AU: auManual, UK: ukManual, NZ: nzManual, US: usManual };
