@@ -1,0 +1,45 @@
+{
+  "name": "business-name-check",
+  "version": "0.1.0",
+  "description": "Check whether a business or brand name is already taken on official business and trade mark registers (Australia, New Zealand, UK, US).",
+  "type": "module",
+  "bin": {
+    "business-name-check": "bin/business-name-check.js"
+  },
+  "main": "src/index.js",
+  "files": [
+    "bin",
+    "src",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "test": "node --test test/match.test.js test/registers.test.js",
+    "test:live": "LIVE=1 node --test test/live.test.js"
+  },
+  "keywords": [
+    "business-name",
+    "trade-mark",
+    "trademark",
+    "abn",
+    "asic",
+    "companies-house",
+    "nzbn",
+    "branding",
+    "cli"
+  ],
+  "author": "Regan McGregor",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reganmcgregor/business-name-check.git"
+  },
+  "homepage": "https://github.com/reganmcgregor/business-name-check#readme",
+  "bugs": {
+    "url": "https://github.com/reganmcgregor/business-name-check/issues"
+  }
+}
