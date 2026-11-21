@@ -17,10 +17,13 @@ export function normalise(input) {
     .replace(/\s+/g, ' ');
 }
 
-/** Normalise, then drop a leading "the" and trailing legal-form words (Pty Ltd, Inc, LLC...). */
+/** Normalise, then drop a leading "the", "and" and trailing legal-form words (Pty Ltd, Inc, LLC...). */
 export function nameKey(input) {
   let tokens = normalise(input).split(' ').filter(Boolean);
   if (tokens[0] === 'the' && tokens.length > 1) tokens = tokens.slice(1);
+  // "and" (from "&") carries no identity: "Heat & Chill" and "& Chill Ltd" must not look alike because of it.
+  const withoutAnd = tokens.filter((t) => t !== 'and');
+  if (withoutAnd.length) tokens = withoutAnd;
   while (tokens.length > 1 && LEGAL_SUFFIXES.has(tokens[tokens.length - 1])) tokens.pop();
   return tokens.join(' ');
 }
