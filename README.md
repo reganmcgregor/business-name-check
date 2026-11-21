@@ -21,7 +21,7 @@ It needs Node 20.12 or newer, has no dependencies, and runs with no API keys at 
 | Australia | ABN Lookup (ABR) | Entity, business and trading names | Free GUID | Needs key |
 | Australia | IP Australia | Trade marks (live marks only) | Free client ID and secret | Needs key (see notes) |
 | United Kingdom | Companies House | Companies and LLPs | Free API key | Needs key |
-| New Zealand | NZBN register | Companies, trusts, sole traders with an NZBN | Free subscription key | Needs key |
+| New Zealand | NZBN register | Companies, trusts, sole traders with an NZBN | Free subscription key | Needs key (not yet run against a live key) |
 | United States | SEC EDGAR company list | SEC registrants only | Your own User-Agent string | Needs a contact string |
 | United States | NY, CO, CT and OR open data | Business registers of those four states | None | Works with no key |
 | All | Domain names (RDAP, WHOIS for .nz) | `.com`, plus `.com.au`, `.co.nz`, `.co.uk` for the countries you pick | None | Works with no key |
