@@ -2,7 +2,7 @@
 
 const LEGAL_SUFFIXES = new Set([
   'pty', 'proprietary', 'ltd', 'limited', 'inc', 'incorporated', 'llc', 'llp', 'lp',
-  'plc', 'corp', 'corporation', 'co', 'company', 'nz', 'trust', 'trading', 'as',
+  'plc', 'corp', 'corporation', 'co', 'company',
 ]);
 
 /** Lower-case, strip accents, turn & into "and", drop punctuation. */
@@ -24,7 +24,8 @@ export function nameKey(input) {
   // "and" (from "&") carries no identity: "Heat & Chill" and "& Chill Ltd" must not look alike because of it.
   const withoutAnd = tokens.filter((t) => t !== 'and');
   if (withoutAnd.length) tokens = withoutAnd;
-  while (tokens.length > 1 && LEGAL_SUFFIXES.has(tokens[tokens.length - 1])) tokens.pop();
+  // At most two trailing company-form words ("Pty Ltd"), so "Bank of Co" style names are not eaten.
+  for (let i = 0; i < 2 && tokens.length > 1 && LEGAL_SUFFIXES.has(tokens[tokens.length - 1]); i++) tokens.pop();
   return tokens.join(' ');
 }
 
@@ -70,7 +71,11 @@ export function classify(query, candidate) {
   if (containsTokens(c, q)) return 'close';
   // A short candidate inside a longer query (HEAT in "heat and chill") only counts if it is most of the query.
   if (c.length >= 4 && c.length >= q.length * 0.6 && containsTokens(q, c)) return 'close';
-  if (similarity(q.replace(/ /g, ''), c.replace(/ /g, '')) >= 0.8) return 'close';
+  const qj = q.replace(/ /g, '');
+  const cj = c.replace(/ /g, '');
+  // One letter off counts as close for names of 4+ letters (Bolt / Volt), otherwise a similarity cut-off.
+  if (qj.length >= 4 && cj.length >= 4 && levenshtein(qj, cj) <= 1) return 'close';
+  if (similarity(qj, cj) >= 0.8) return 'close';
   const qt = q.split(' ');
   const ct = new Set(c.split(' '));
   if (qt.length > 1 && qt.every((t) => ct.has(t))) return 'close';

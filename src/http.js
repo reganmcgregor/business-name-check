@@ -10,6 +10,15 @@ export const USER_AGENT = `business-name-check/${version} (+https://github.com/r
 const hostQueues = new Map();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Retry-After is either seconds or an HTTP date. Returns milliseconds, or null. */
+function retryAfterMs(header) {
+  if (!header) return null;
+  const secs = Number(header);
+  if (Number.isFinite(secs)) return secs * 1000;
+  const when = Date.parse(header);
+  return Number.isNaN(when) ? null : Math.max(0, when - Date.now());
+}
+
 export class HttpError extends Error {
   constructor(message, status, body) {
     super(message);
@@ -35,7 +44,9 @@ export async function request(url, opts = {}) {
     minDelayMs = Number(process.env.BNC_MIN_DELAY_MS ?? 250),
     retries = 3,
     timeoutMs = 20000,
+    deadlineMs = 90000,
   } = opts;
+  const started = Date.now();
   const host = new URL(url).host;
 
   for (let attempt = 0; ; attempt++) {
@@ -53,19 +64,19 @@ export async function request(url, opts = {}) {
     });
 
     if (res.networkError) {
-      if (attempt < retries) {
+      if (attempt < retries && method === 'GET' && Date.now() - started + 1000 * 2 ** attempt < deadlineMs) {
         await sleep(1000 * 2 ** attempt);
         continue;
       }
       throw new HttpError(`Network error: ${res.networkError.message}`, 0);
     }
 
-    const retryable = res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504;
+    // Only idempotent requests are retried on 5xx. A 429 is always safe to retry.
+    const retryable = res.status === 429 || (method === 'GET' && [502, 503, 504].includes(res.status));
     if (retryable && attempt < retries) {
-      const retryAfter = Number(res.headers.get('retry-after'));
-      const wait = Number.isFinite(retryAfter) && retryAfter > 0
-        ? Math.min(retryAfter * 1000, 60000)
-        : 1000 * 2 ** attempt * 2;
+      const fromHeader = retryAfterMs(res.headers.get('retry-after'));
+      const wait = fromHeader != null ? Math.min(fromHeader, 60000) : 1000 * 2 ** attempt * 2;
+      if (Date.now() - started + wait > deadlineMs) throw new HttpError(`Gave up on ${host} after ${deadlineMs / 1000}s of retries`, res.status);
       await sleep(wait);
       continue;
     }

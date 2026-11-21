@@ -40,3 +40,14 @@ test('classify: related', () => {
   assert.equal(classify('Woolworths', 'Coles Supermarkets'), 'related');
   assert.equal(classify('', 'Anything'), 'related');
 });
+
+test('classify: one letter off is close for short brands', () => {
+  assert.equal(classify('Bolt', 'Volt'), 'close');
+  assert.equal(classify('Zed', 'Zod'), 'related'); // too short to treat as close
+});
+
+test('nameKey keeps regional words and strips at most two company-form words', () => {
+  assert.equal(nameKey('Bank of NZ'), 'bank of nz');
+  assert.equal(nameKey('Acme Pty Ltd'), 'acme');
+  assert.equal(nameKey('Acme Trading'), 'acme trading');
+});

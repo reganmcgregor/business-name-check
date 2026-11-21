@@ -18,7 +18,7 @@
     "node": ">=20.12"
   },
   "scripts": {
-    "test": "node --test test/match.test.js test/registers.test.js",
+    "test": "node --test test/match.test.js test/registers.test.js test/domains.test.js",
     "test:live": "LIVE=1 node --test test/live.test.js"
   },
   "keywords": [

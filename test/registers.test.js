@@ -1,10 +1,14 @@
 // Register adapters against canned responses (no network, no keys).
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkName, parseCountries } from '../src/index.js';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { checkName, exitCodeFor, parseCountries } from '../src/index.js';
 import { parseJsonp } from '../src/registers/au.js';
 
 process.env.BNC_MIN_DELAY_MS = '0';
+process.env.BNC_CACHE_DIR = mkdtempSync(join(tmpdir(), 'bnc-test-'));
 const realFetch = globalThis.fetch;
 let calls;
 
@@ -32,7 +36,7 @@ test('parseCountries', () => {
 
 test('registers without a key skip themselves', async () => {
   stubFetch(() => { throw new Error('no network expected'); });
-  const r = await checkName('Acme', { countries: ['UK', 'NZ'], env: {} });
+  const r = await checkName('Acme', { countries: ['UK', 'NZ'], env: {} , domains: false });
   assert.ok(r.results.every((x) => x.status === 'skipped'));
   assert.match(r.results[0].reason, /COMPANIES_HOUSE_API_KEY/);
   assert.equal(calls.length, 0);
@@ -43,7 +47,7 @@ test('Companies House: basic auth, mapping, classification', async () => {
     { title: 'TESCO PLC', company_status: 'active', company_type: 'plc', company_number: '00445790' },
     { title: 'TESCO STORES LIMITED', company_status: 'active', company_type: 'ltd', company_number: '00519500' },
   ] }));
-  const r = await checkName('Tesco', { countries: ['UK'], env: { COMPANIES_HOUSE_API_KEY: 'k' } });
+  const r = await checkName('Tesco', { countries: ['UK'], env: { COMPANIES_HOUSE_API_KEY: 'k' } , domains: false });
   const ch = r.results[0];
   assert.equal(ch.status, 'ok');
   assert.equal(ch.matches[0].match, 'exact');
@@ -55,7 +59,7 @@ test('NZBN: subscription key header and mapping', async () => {
   stubFetch(() => json({ totalItems: 1, items: [
     { nzbn: '9429000000000', entityName: 'FONTERRA CO-OPERATIVE GROUP LIMITED', entityStatusDescription: 'Registered', entityTypeDescription: 'NZ Limited Company' },
   ] }));
-  const r = await checkName('Fonterra', { countries: ['NZ'], env: { NZBN_SUBSCRIPTION_KEY: 'k' } });
+  const r = await checkName('Fonterra', { countries: ['NZ'], env: { NZBN_SUBSCRIPTION_KEY: 'k' } , domains: false });
   assert.equal(r.results[0].matches[0].id, '9429000000000');
   assert.equal(r.results[0].matches[0].match, 'close');
   assert.equal(calls[0].init.headers['Ocp-Apim-Subscription-Key'], 'k');
@@ -64,28 +68,28 @@ test('NZBN: subscription key header and mapping', async () => {
 
 test('ABN Lookup: JSONP and API errors', async () => {
   stubFetch(() => new Response('callback({"Names":[{"Abn":"88000014675","Name":"WOOLWORTHS GROUP LIMITED","NameType":"Entity Name","AbnStatus":"0000000001","IsCurrent":true,"State":"NSW","Postcode":"2000","Score":100}]})'));
-  const ok = await checkName('Woolworths', { countries: ['AU'], env: { ABR_GUID: 'g' } });
+  const ok = await checkName('Woolworths', { countries: ['AU'], env: { ABR_GUID: 'g' } , domains: false });
   const abr = ok.results.find((x) => x.id === 'au-abr');
   assert.equal(abr.status, 'ok');
   assert.equal(abr.matches[0].status, 'Current name');
   assert.equal(abr.matches[0].url, 'https://abr.business.gov.au/ABN/View?abn=88000014675');
 
   stubFetch(() => new Response('callback({"Message":"The GUID entered is not recognised as a Registered Party","Names":[]})'));
-  const bad = await checkName('Woolworths', { countries: ['AU'], env: { ABR_GUID: 'x' } });
+  const bad = await checkName('Woolworths', { countries: ['AU'], env: { ABR_GUID: 'x' } , domains: false });
   assert.equal(bad.results.find((x) => x.id === 'au-abr').status, 'error');
 });
 
 test('retries on 429 then succeeds', async () => {
   let n = 0;
   stubFetch(() => (++n === 1 ? new Response('slow down', { status: 429, headers: { 'retry-after': '0' } }) : json({ total_results: 0, items: [] })));
-  const r = await checkName('Zzzz', { countries: ['UK'], env: { COMPANIES_HOUSE_API_KEY: 'k' } });
+  const r = await checkName('Zzzz', { countries: ['UK'], env: { COMPANIES_HOUSE_API_KEY: 'k' } , domains: false });
   assert.equal(r.results[0].status, 'ok');
   assert.equal(n, 2);
 });
 
 test('401 is reported as rejected credentials, not a crash', async () => {
   stubFetch(() => json({ error: 'nope' }, 401));
-  const r = await checkName('Tesco', { countries: ['UK'], env: { COMPANIES_HOUSE_API_KEY: 'bad' } });
+  const r = await checkName('Tesco', { countries: ['UK'], env: { COMPANIES_HOUSE_API_KEY: 'bad' } , domains: false });
   assert.equal(r.results[0].status, 'error');
   assert.match(r.results[0].reason, /credentials/);
 });
@@ -96,7 +100,7 @@ test('IP Australia: token, quick search, detail fetch', async () => {
     if (url.endsWith('/search/quick')) return json({ count: 1, trademarkIds: ['1234567'] });
     return json({ words: ['WOOLWORTHS'], statusCode: 'Registered', kind: ['Word'], owner: [{ name: 'Example Pty Ltd' }], goodsAndServices: [{ class: '35' }] });
   });
-  const r = await checkName('Woolworths', { countries: ['AU'], env: { IPA_CLIENT_ID: 'i', IPA_CLIENT_SECRET: 's' } });
+  const r = await checkName('Woolworths', { countries: ['AU'], env: { IPA_CLIENT_ID: 'i', IPA_CLIENT_SECRET: 's' } , domains: false });
   const ipa = r.results.find((x) => x.id === 'au-ip-australia');
   assert.equal(ipa.status, 'ok');
   assert.equal(ipa.matches[0].match, 'exact');
@@ -104,4 +108,57 @@ test('IP Australia: token, quick search, detail fetch', async () => {
   assert.equal(ipa.matches[0].url, 'https://search.ipaustralia.gov.au/trademarks/search/view/1234567');
   const searchCall = calls.find((c) => c.url.endsWith('/search/quick'));
   assert.deepEqual(JSON.parse(searchCall.init.body).filters.status, ['REGISTERED', 'PENDING']);
+});
+
+test('summary never reports a clean result when nothing was checked', async () => {
+  stubFetch(() => { throw new Error('no network expected'); });
+  const r = await checkName('Acme', { countries: ['UK'], env: {}, domains: false });
+  assert.equal(r.summary.UK.registersChecked, 0);
+  assert.equal(r.summary.UK.complete, false);
+  assert.equal(r.summary.UK.tradeMarksChecked, false);
+});
+
+test('inactive exact matches are counted apart and do not trigger the exit code', async () => {
+  stubFetch(() => json({ total_results: 1, items: [
+    { title: 'ACME LIMITED', company_status: 'dissolved', company_type: 'ltd', company_number: '1' },
+  ] }));
+  const r = await checkName('Acme', { countries: ['UK'], env: { COMPANIES_HOUSE_API_KEY: 'k' }, domains: false });
+  assert.equal(r.summary.UK.exact, 0);
+  assert.equal(r.summary.UK.inactiveExact, 1);
+  assert.equal(exitCodeFor(r), 0);
+
+  stubFetch(() => json({ total_results: 1, items: [
+    { title: 'ACME LIMITED', company_status: 'active', company_type: 'ltd', company_number: '1' },
+  ] }));
+  const live = await checkName('Acme', { countries: ['UK'], env: { COMPANIES_HOUSE_API_KEY: 'k' }, domains: false });
+  assert.equal(exitCodeFor(live), 1);
+});
+
+test('exit code 3 when a register fails and nothing else was found', async () => {
+  stubFetch(() => json({ error: 'nope' }, 401));
+  const r = await checkName('Acme', { countries: ['UK'], env: { COMPANIES_HOUSE_API_KEY: 'bad' }, domains: false });
+  assert.equal(exitCodeFor(r), 3);
+});
+
+test('US state open data merges states and flags dissolved records', async () => {
+  stubFetch((url) => {
+    if (url.includes('data.ny.gov')) return json([{ current_entity_name: 'HEAT & CHILL MECHANICAL LLC', dos_id: '1', entity_type: 'LLC' }]);
+    if (url.includes('data.colorado.gov')) return json([{ entityname: 'Heat & Chill Pros LLC', entityid: '2', entitystatus: 'Voluntarily Dissolved' }]);
+    return json([]);
+  });
+  const r = await checkName('Heat & Chill', { countries: ['US'], env: {}, domains: false });
+  const st = r.results.find((x) => x.id === 'us-state-open-data');
+  assert.equal(st.status, 'ok');
+  const co = st.matches.find((m) => m.details.state === 'CO');
+  assert.equal(co.active, false);
+  assert.equal(st.matches.find((m) => m.details.state === 'NY').active, true);
+});
+
+test('SEC filter finds "Heat Chill" for "Heat & Chill" and ranks exact first', async () => {
+  const { secEdgar } = await import('../src/registers/us.js');
+  stubFetch(() => json({ 0: { cik_str: 1, ticker: 'HCI', title: 'HEAT CHILL INC' }, 1: { cik_str: 2, ticker: 'HCX', title: 'ARTISAN HEAT CHILL SYSTEMS CORP' } }));
+  const out = await secEdgar.search('Heat & Chill', { SEC_USER_AGENT: 'test', }, { limit: 10 }).catch((e) => e);
+  assert.ok(out.matches, String(out));
+  assert.equal(out.matches[0].name, 'HEAT CHILL INC');
+  assert.equal(out.matches.length, 2);
 });

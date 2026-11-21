@@ -64,6 +64,7 @@ export const asicBusinessNames = {
       matches: records.map((r) => ({
         name: r.BN_NAME,
         status: r.BN_STATUS,
+        active: r.BN_STATUS === 'Registered',
         type: 'Business name',
         id: r.BN_STATE_NUM ?? r.BN_ABN ?? null,
         url: abrUrl(r.BN_ABN),
@@ -87,6 +88,7 @@ export const asicCompanies = {
       matches: records.map((r) => ({
         name: r['Company Name'],
         status: r.Status,
+        active: r.Status === 'REGD',
         type: r.Type,
         id: r.ACN,
         url: abrUrl(r.ABN),
@@ -125,6 +127,7 @@ export const abr = {
       matches: (body.Names ?? []).map((n) => ({
         name: n.Name,
         status: n.IsCurrent ? 'Current name' : 'Former name',
+        active: Boolean(n.IsCurrent),
         type: n.NameType,
         id: n.Abn,
         url: abrUrl(n.Abn),
@@ -185,6 +188,7 @@ export const ipAustralia = {
       matches.push({
         name: best ?? extractWords(detail) ?? `Trade mark ${id}`,
         status: detail.statusCode ?? detail.statusGroup,
+        active: true, // the search is limited to registered and pending marks
         type: Array.isArray(detail.kind) ? detail.kind.join(', ') : 'Trade mark',
         id: String(id),
         url: `https://search.ipaustralia.gov.au/trademarks/search/view/${id}`,

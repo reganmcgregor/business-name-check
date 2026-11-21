@@ -20,6 +20,7 @@ export const companiesHouse = {
       matches: (body.items ?? []).map((c) => ({
         name: c.title,
         status: c.company_status,
+        active: ['dissolved', 'closed', 'converted-closed', 'removed'].includes(c.company_status) ? false : true,
         type: c.company_type,
         id: c.company_number,
         url: `https://find-and-update.company-information.service.gov.uk/company/${c.company_number}`,

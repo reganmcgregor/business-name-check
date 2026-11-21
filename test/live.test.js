@@ -13,7 +13,7 @@ const TAKEN = [
   ['AU', 'Woolworths', ['au-asic-business-names', 'au-asic-companies', 'au-abr', 'au-ip-australia']],
   ['UK', 'Tesco', ['uk-companies-house']],
   ['NZ', 'Fonterra', ['nz-nzbn']],
-  ['US', 'Walmart', ['us-sec-edgar']],
+  ['US', 'Walmart', ['us-sec-edgar', 'us-state-open-data']],
 ];
 const FREE = 'Zqxvlorn Quillmark Brightfen';
 
@@ -42,4 +42,14 @@ test('"Heat & Chill" runs on every register that has a key', { skip: !live }, as
   for (const res of r.results.filter((x) => x.status !== 'skipped')) {
     assert.equal(res.status, 'ok', `${res.id}: ${res.reason}`);
   }
+});
+
+test('domains: a taken name is registered, gibberish is not found (.com, .com.au, .co.uk, .co.nz)', { skip: !live }, async () => {
+  const taken = await checkName('Woolworths', { countries: ['AU', 'NZ', 'UK'] });
+  const byDomain = Object.fromEntries(taken.domains.map((d) => [d.domain, d.status]));
+  assert.equal(byDomain['woolworths.com.au'], 'registered');
+  assert.equal(byDomain['woolworths.co.nz'], 'registered');
+  assert.equal(byDomain['woolworths.co.uk'], 'registered');
+  const free = await checkName('Zqxvlorn Quillmark Brightfen', { countries: ['AU', 'NZ', 'UK'] });
+  for (const d of free.domains) assert.equal(d.status, 'not_found', d.domain);
 });

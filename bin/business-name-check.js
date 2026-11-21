@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { checkName, parseCountries, REGISTERS } from '../src/index.js';
+import { checkName, exitCodeFor, parseCountries, REGISTERS } from '../src/index.js';
 import { formatText } from '../src/format.js';
 
 const HELP = `business-name-check: is this business or brand name already taken?
@@ -15,6 +15,9 @@ Options
       --all              Also list loosely related results
   -l, --limit <n>        Results to request per register. Default: 25
       --env-file <path>  Load API keys from this file. Default: ./.env if present
+      --no-domains       Skip the domain name checks
+      --domains <list>   Domain endings to check instead of the defaults, e.g. com,com.au,shop
+      --exit-code        Exit 1 on an active exact match, 3 if a register failed (default is always 0)
       --setup            Prompt for API keys (hidden input) and save them to ./.env
       --list             List the registers, the keys they need and where to get them
   -h, --help             Show this help
@@ -43,6 +46,9 @@ try {
       'env-file': { type: 'string' },
       list: { type: 'boolean' },
       setup: { type: 'boolean' },
+      'no-domains': { type: 'boolean' },
+      domains: { type: 'string' },
+      'exit-code': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -64,6 +70,7 @@ if (values.setup) {
 
 const envFile = values['env-file'] ?? (existsSync('.env') ? '.env' : null);
 if (envFile) {
+  if (!values['env-file'] && !values.json) console.error(`Loading keys from ./${envFile} (use --env-file to choose another file)`);
   if (!existsSync(envFile)) fail(`env file not found: ${envFile}`);
   process.loadEnvFile(envFile); // does not override variables already set in the shell
 }
@@ -88,5 +95,7 @@ try {
 const limit = values.limit ? Number(values.limit) : 25;
 if (!Number.isInteger(limit) || limit < 1) fail('--limit must be a positive whole number');
 
-const report = await checkName(name, { countries, limit });
+const tlds = values.domains ? values.domains.split(',') : undefined;
+const report = await checkName(name, { countries, limit, domains: !values['no-domains'], tlds });
 console.log(values.json ? JSON.stringify(report, null, 2) : formatText(report, { all: values.all }));
+if (values['exit-code']) process.exitCode = exitCodeFor(report);

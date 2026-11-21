@@ -2,13 +2,14 @@ import { classify, nameKey, rankMatches } from './match.js';
 import { abr, asicBusinessNames, asicCompanies, auManual, ipAustralia } from './registers/au.js';
 import { companiesHouse, ukManual } from './registers/uk.js';
 import { nzbn, nzManual } from './registers/nz.js';
-import { secEdgar, usManual } from './registers/us.js';
+import { secEdgar, usManual, usStateOpenData } from './registers/us.js';
+import { checkDomains, DOMAIN_NOTE, resolveTlds } from './domains.js';
 
 export const REGISTERS = [
   asicBusinessNames, asicCompanies, abr, ipAustralia,
   companiesHouse,
   nzbn,
-  secEdgar,
+  secEdgar, usStateOpenData,
 ];
 
 export const MANUAL = { AU: auManual, UK: ukManual, NZ: nzManual, US: usManual };
@@ -51,7 +52,7 @@ async function runRegister(register, name, env, opts) {
   }
   try {
     const { matches, total, note } = await register.search(name, env, opts);
-    const classified = rankMatches(matches.map((m) => ({ ...m, match: classify(name, m.name) })));
+    const classified = rankMatches(matches.map((m) => ({ active: null, ...m, match: classify(name, m.name) })));
     return { ...base, status: 'ok', total, note, matches: classified };
   } catch (err) {
     const auth = err.status === 401 || err.status === 403;
@@ -66,31 +67,42 @@ async function runRegister(register, name, env, opts) {
   }
 }
 
-/**
- * Check a name against the registers for the given countries.
- * @param {string} name
- * @param {{countries?: string[], env?: object, limit?: number}} options
- */
-export async function checkName(name, { countries = COUNTRIES, env = process.env, limit = 25 } = {}) {
-  if (!String(name ?? '').trim()) throw new Error('A name to check is required.');
-  const registers = REGISTERS.filter((r) => countries.includes(r.country));
-  const results = await Promise.all(registers.map((r) => runRegister(r, name, env, { limit })));
-
-  const manual = countries.flatMap((c) =>
-    (MANUAL[c] ?? []).map((m) => ({ country: c, label: m.label, url: m.url(name) })));
-
-  const summary = Object.fromEntries(countries.map((c) => {
+/** Per-country counts. "active" means active or unknown; inactive records are counted apart. */
+function summarise(countries, results) {
+  return Object.fromEntries(countries.map((c) => {
     const rs = results.filter((r) => r.country === c);
     const checked = rs.filter((r) => r.status === 'ok');
     const all = checked.flatMap((r) => r.matches);
+    const live = (m) => m.active !== false;
     return [c, {
+      registersTotal: rs.length,
       registersChecked: checked.length,
       registersSkipped: rs.filter((r) => r.status === 'skipped').length,
       registersFailed: rs.filter((r) => r.status === 'error').length,
-      exact: all.filter((m) => m.match === 'exact').length,
-      close: all.filter((m) => m.match === 'close').length,
+      tradeMarksChecked: checked.some((r) => r.kind === 'trademark'),
+      complete: rs.length > 0 && checked.length === rs.length,
+      exact: all.filter((m) => m.match === 'exact' && live(m)).length,
+      close: all.filter((m) => m.match === 'close' && live(m)).length,
+      inactiveExact: all.filter((m) => m.match === 'exact' && !live(m)).length,
     }];
   }));
+}
+
+/**
+ * Check a name against the registers for the given countries.
+ * @param {string} name
+ * @param {{countries?: string[], env?: object, limit?: number, domains?: boolean, tlds?: string[]}} options
+ */
+export async function checkName(name, { countries = COUNTRIES, env = process.env, limit = 25, domains = true, tlds } = {}) {
+  if (!String(name ?? '').trim()) throw new Error('A name to check is required.');
+  const registers = REGISTERS.filter((r) => countries.includes(r.country));
+  const [results, domainResults] = await Promise.all([
+    Promise.all(registers.map((r) => runRegister(r, name, env, { limit }))),
+    domains ? checkDomains(name, resolveTlds(countries, tlds)) : Promise.resolve([]),
+  ]);
+
+  const manual = countries.flatMap((c) =>
+    (MANUAL[c] ?? []).map((m) => ({ country: c, label: m.label, url: m.url(name) })));
 
   return {
     query: name,
@@ -99,7 +111,17 @@ export async function checkName(name, { countries = COUNTRIES, env = process.env
     countries,
     results,
     manual,
-    summary,
+    summary: summarise(countries, results),
+    domains: domainResults,
+    domainNote: domains ? DOMAIN_NOTE : undefined,
     disclaimer: DISCLAIMER,
   };
+}
+
+/** Exit code for --exit-code: 0 nothing found, 1 an active exact match, 3 a register failed and nothing else was found. */
+export function exitCodeFor(report) {
+  const s = Object.values(report.summary);
+  if (s.some((c) => c.exact > 0)) return 1;
+  if (s.some((c) => c.registersFailed > 0)) return 3;
+  return 0;
 }

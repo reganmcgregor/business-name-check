@@ -24,6 +24,7 @@ export const nzbn = {
       matches: (body.items ?? []).map((e) => ({
         name: e.entityName,
         status: e.entityStatusDescription,
+        active: /^(registered|active)$/i.test(e.entityStatusDescription ?? '') ? true : /removed|struck|dissol|ceased|inactive/i.test(e.entityStatusDescription ?? '') ? false : null,
         type: e.entityTypeDescription,
         id: e.nzbn,
         url: `https://www.nzbn.govt.nz/mynzbn/nzbndetails/${e.nzbn}`,
