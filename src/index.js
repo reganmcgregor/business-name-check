@@ -50,9 +50,9 @@ async function runRegister(register, name, env, opts) {
     };
   }
   try {
-    const { matches, total } = await register.search(name, env, opts);
+    const { matches, total, note } = await register.search(name, env, opts);
     const classified = rankMatches(matches.map((m) => ({ ...m, match: classify(name, m.name) })));
-    return { ...base, status: 'ok', total, matches: classified };
+    return { ...base, status: 'ok', total, note, matches: classified };
   } catch (err) {
     const auth = err.status === 401 || err.status === 403;
     return {

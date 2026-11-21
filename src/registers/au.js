@@ -1,5 +1,8 @@
 import { request } from '../http.js';
-import { normalise } from '../match.js';
+import { classify, normalise } from '../match.js';
+
+const RANK_ORDER = { exact: 0, close: 1, related: 2 };
+const IPA_MIN_DETAILS = 60;
 
 const CKAN = 'https://data.gov.au/data/api/3/action/datastore_search';
 const BUSINESS_NAMES_RESOURCE = '55ad4b1c-5eeb-44ea-8b29-d410da431be3';
@@ -138,7 +141,7 @@ export const ipAustralia = {
   kind: 'trademark',
   label: 'IP Australia trade marks',
   env: ['IPA_CLIENT_ID', 'IPA_CLIENT_SECRET'],
-  signup: 'https://anypoint.mulesoft.com/exchange/portals/ip-australia-3/pages/How%20to%20Register/',
+  signup: 'https://portal.api.ipaustralia.gov.au/s/',
   coverage: 'Registered and pending Australian trade marks (word marks).',
   async search(name, env, { limit }) {
     const base = (env.IPA_ENV ?? 'production') === 'test'
@@ -158,31 +161,47 @@ export const ipAustralia = {
     const auth = { authorization: `Bearer ${token}` };
     const api = `${base}/australian-trade-mark-search-api/v1`;
 
+    // Live marks only (registered or pending). Removed and lapsed marks are left out.
     const searchRes = await request(`${api}/search/quick`, {
       method: 'POST',
       headers: { ...auth, 'content-type': 'application/json' },
       body: JSON.stringify({
         query: name,
         sort: { field: 'NUMBER', direction: 'ASCENDING' },
-        filters: { quickSearchType: ['WORD'] },
+        filters: { quickSearchType: ['WORD'], status: ['REGISTERED', 'PENDING'] },
       }),
     });
     const body = searchRes.json();
-    const ids = extractIds(body).slice(0, limit);
+    const allIds = extractIds(body);
+    // Search returns numbers only, so each record is one more call. Newest first, capped to stay polite.
+    const cap = Math.max(limit, IPA_MIN_DETAILS);
+    const ids = [...allIds].reverse().slice(0, cap);
 
     const matches = [];
     for (const id of ids) {
       const detail = (await request(`${api}/trade-mark/${encodeURIComponent(id)}`, { headers: auth })).json();
+      const words = Array.isArray(detail.words) ? detail.words.filter(Boolean) : [];
+      const best = [...words].sort((a, b) => RANK_ORDER[classify(name, a)] - RANK_ORDER[classify(name, b)])[0];
       matches.push({
-        name: extractWords(detail) ?? `Trade mark ${id}`,
-        status: pick(detail, ['statusPhase', 'status', 'markStatus', 'statusGroup']) ?? undefined,
-        type: 'Trade mark',
+        name: best ?? extractWords(detail) ?? `Trade mark ${id}`,
+        status: detail.statusCode ?? detail.statusGroup,
+        type: Array.isArray(detail.kind) ? detail.kind.join(', ') : 'Trade mark',
         id: String(id),
         url: `https://search.ipaustralia.gov.au/trademarks/search/view/${id}`,
-        details: {},
+        details: {
+          words,
+          owner: (detail.owner ?? []).map((o) => o.name).filter(Boolean),
+          classes: (detail.goodsAndServices ?? []).map((g) => g.class),
+          filed: detail.filingDate,
+        },
       });
     }
-    return { total: body.count ?? body.total ?? ids.length, matches };
+    const total = body.count ?? allIds.length;
+    return {
+      total,
+      matches,
+      note: total > ids.length ? `Checked the newest ${ids.length} of ${total} live marks. Use --limit to check more, or search by hand.` : undefined,
+    };
   },
 };
 

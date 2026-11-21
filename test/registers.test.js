@@ -101,11 +101,14 @@ test('IP Australia: token, quick search, detail fetch', async () => {
   stubFetch((url) => {
     if (url.endsWith('/access_token')) return json({ access_token: 'tok' });
     if (url.endsWith('/search/quick')) return json({ count: 1, trademarkIds: ['1234567'] });
-    return json({ words: ['WOOLWORTHS'], statusPhase: 'REGISTERED' });
+    return json({ words: ['WOOLWORTHS'], statusCode: 'Registered', kind: ['Word'], owner: [{ name: 'Example Pty Ltd' }], goodsAndServices: [{ class: '35' }] });
   });
   const r = await checkName('Woolworths', { countries: ['AU'], env: { IPA_CLIENT_ID: 'i', IPA_CLIENT_SECRET: 's' } });
   const ipa = r.results.find((x) => x.id === 'au-ip-australia');
   assert.equal(ipa.status, 'ok');
   assert.equal(ipa.matches[0].match, 'exact');
+  assert.equal(ipa.matches[0].status, 'Registered');
   assert.equal(ipa.matches[0].url, 'https://search.ipaustralia.gov.au/trademarks/search/view/1234567');
+  const searchCall = calls.find((c) => c.url.endsWith('/search/quick'));
+  assert.deepEqual(JSON.parse(searchCall.init.body).filters.status, ['REGISTERED', 'PENDING']);
 });

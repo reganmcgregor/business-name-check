@@ -19,7 +19,7 @@ It needs Node 20.12 or newer, has no dependencies, and runs with no API keys at 
 | Australia | ASIC business names (via data.gov.au) | Business names | None | Works with no key |
 | Australia | ASIC company register (via data.gov.au) | Companies | None | Works with no key |
 | Australia | ABN Lookup (ABR) | Entity, business and trading names | Free GUID | Needs key |
-| Australia | IP Australia | Trade marks | Free client ID and secret | Needs key (see notes) |
+| Australia | IP Australia | Trade marks (live marks only) | Free client ID and secret | Needs key (see notes) |
 | United Kingdom | Companies House | Companies and LLPs | Free API key | Needs key |
 | New Zealand | NZBN register | Companies, trusts, sole traders with an NZBN | Free subscription key | Needs key |
 | United States | SEC EDGAR company list | SEC registrants only | Your own User-Agent string | Needs a contact string |
@@ -38,7 +38,7 @@ Also not covered: common-law (unregistered) trade mark use, domain names, social
 
 Notes on the registers that need a key:
 
-- **IP Australia** issues API credentials after a manual approval that can take up to 3 business days. The adapter is written against IP Australia's published API description and has been verified only when credentials are available, so please open an issue if the response shape has changed.
+- **IP Australia** gives you a client ID and secret once you create an application on their developer portal and request access to the Australian Trade Mark Search API. The portal's own text says approval can take a few days, but mine was approved on the spot. The tool searches registered and pending marks only (removed and lapsed marks are left out). The search returns trade mark numbers, so the tool then fetches each record, newest first, up to 60 by default (raise it with `--limit`). When a name has more live marks than that, the output says how many it checked.
 - **SEC EDGAR** has no name-search API. The tool downloads the SEC's public company list once a day and filters it locally. The SEC asks every automated client to identify itself with a name and email in the User-Agent, so the tool asks you for yours rather than inventing one.
 - **OpenCorporates** gives free keys to public-benefit and open-data users. Commercial use needs a paid plan. Check their terms before you use it.
 
@@ -101,7 +101,7 @@ Copy `.env.example` to `.env` and fill in what you have, or run `business-name-c
 | Variable | Where to get it |
 | --- | --- |
 | `ABR_GUID` | Register at [abr.business.gov.au/Tools/WebServices](https://abr.business.gov.au/Tools/WebServices). Free. The GUID is emailed to you. |
-| `IPA_CLIENT_ID`, `IPA_CLIENT_SECRET` | Request API access on the [IP Australia developer portal](https://anypoint.mulesoft.com/exchange/portals/ip-australia-3/pages/How%20to%20Register/), then subscribe to the Australian Trade Mark Search API. Free, up to 3 business days. Set `IPA_ENV=test` to use their test environment. |
+| `IPA_CLIENT_ID`, `IPA_CLIENT_SECRET` | Register on the [IP Australia API developer portal](https://portal.api.ipaustralia.gov.au/s/), create a client application (choose the Production environment), then use Request Access on the Australian Trade Mark Search API page. Free. The client ID and secret are shown once when you create the application, so save them straight away. Set `IPA_ENV=test` to use their test environment. |
 | `COMPANIES_HOUSE_API_KEY` | Create an account on the [Companies House developer hub](https://developer.company-information.service.gov.uk/), register an application and create a REST key. Free. |
 | `NZBN_SUBSCRIPTION_KEY` | Sign up on the [NZBN API portal](https://portal.api.business.govt.nz/) and subscribe to the NZBN API product. Free, approval can take a short while. Set `NZBN_ENV=sandbox` to use the sandbox. |
 | `SEC_USER_AGENT` | Your own name and email, for example `Your Name you@example.com`. See the [SEC's access rules](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data). |
@@ -117,7 +117,7 @@ The tool is a polite client: it waits at least 250 ms between requests to the sa
 | SEC EDGAR | 10 requests per second, and a descriptive User-Agent is required. The company list is cached for 24 hours in your temp folder. |
 | ABN Lookup | Fair use under the terms you accept when you register for the GUID. Do not hammer it. |
 | NZBN | Throttled per subscription. Retries on 429. |
-| IP Australia | Per client credentials. Retries on 429. |
+| IP Australia | 600 requests per minute on the base tier. Each run makes up to about 60 record fetches. |
 | OpenCorporates | Depends on your plan. |
 | data.gov.au (ASIC) | No published limit. The tool makes about four requests per run. |
 

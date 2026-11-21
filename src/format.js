@@ -39,6 +39,7 @@ export function formatText(report, { all = false, maxShown = 10 } = {}) {
       out.push(`  ${mark} ${r.label} ${dim(`[${kind}]`)}: ${hits.length ? `${hits.length} exact or close` : 'no exact or close match'}${related ? dim(`, ${related} loosely related`) : ''}`);
       const shown = (all ? r.matches : hits).slice(0, all ? r.matches.length : maxShown);
       for (const m of shown) out.push(line(m, '      '));
+      if (r.note) out.push(dim(`      ${r.note}`));
       if (!all && hits.length > maxShown) out.push(dim(`      ...and ${hits.length - maxShown} more (use --json or --limit)`));
     }
     const manual = report.manual.filter((m) => m.country === country);
