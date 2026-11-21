@@ -38,5 +38,5 @@ export const nzManual = [
     label: 'NZ Companies Register name search',
     url: (name) => `https://app.companiesoffice.govt.nz/companies/app/ui/pages/companies/search?q=${encodeURIComponent(name)}&entityTypes=ALL&entityStatusGroups=ALL`,
   },
-  { label: 'IPONZ trade mark search (no public API)', url: () => 'https://app.iponz.govt.nz/app/Extra/IP/TM/Qbe.aspx' },
+  { label: 'IPONZ trade mark search (API exists but is not scripted here)', url: () => 'https://app.iponz.govt.nz/app/Extra/IP/TM/Qbe.aspx' },
 ];

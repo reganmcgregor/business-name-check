@@ -30,7 +30,7 @@ It needs Node 20.12 or newer, has no dependencies, and runs with no API keys at 
 These registers have no open search API, so the tool prints a link for you to check by hand instead:
 
 - **UK IPO trade marks.** The search site blocks automated access with a captcha, and there is no public API.
-- **IPONZ (NZ trade marks).** No public search API.
+- **IPONZ (NZ trade marks).** IPONZ does offer a trade mark search API (`POST /trademarksearch`), through the same MBIE developer portal as the NZBN. You subscribe with your RealMe login, and the endpoint definition is only visible once you are signed in, so it is not scripted here yet. Pull requests welcome if you have access.
 - **USPTO trade marks.** The USPTO's open APIs cover case status and bulk downloads, not name search. Its search site is not an open API.
 - **US state registers.** There is no national US business register. Each state runs its own, and most (including Delaware) have no free API and use captchas. OpenCorporates aggregates many of them, but it is a third party and not complete. The tool links to the NASS directory so you can find the right state.
 
