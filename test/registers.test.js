@@ -162,3 +162,61 @@ test('SEC filter finds "Heat Chill" for "Heat & Chill" and ranks exact first', a
   assert.equal(out.matches[0].name, 'HEAT CHILL INC');
   assert.equal(out.matches.length, 2);
 });
+
+test('DC, PA and Texas sources: LIKE filters, statuses, dates and dedupe', async () => {
+  stubFetch((url) => {
+    if (url.includes('FeatureServer/0/query')) {
+      return json({ features: [
+        { attributes: { BUSINESS_NAME: 'HEAT & CHILL LLC', FILE_NUMBER: 'L1', ENTITY_STATUS: 'Active - In Good Standing', MODELTYPE: 'Domestic LLC', EFFECTIVE_DATE: -86400000 } },
+        { attributes: { BUSINESS_NAME: 'HEAT & CHILL INC', FILE_NUMBER: 'L2', ENTITY_STATUS: 'Revoked', MODELTYPE: 'Domestic Corporation', EFFECTIVE_DATE: 1700000000000 } },
+      ] });
+    }
+    if (url.includes('FeatureServer/1/query')) {
+      return json({ features: [
+        { attributes: { TRADE_NAME: 'Heat & Chill', FILE_NUMBER: 'T1', TRADENAME_STATUS: 'Active Trade Name', EFFECTIVE_DATE: 1700000000000, TRADENAME_EXPIRATIONDATE: Date.now() - 1000 } },
+      ] });
+    }
+    if (url.includes('data.pa.gov')) {
+      return json([
+        { business_name: 'Heat & Chill Pty', filing_number: '0001', typeofbusinessregistration: 'Domestic LLC', creationdate: '2020-01-02T00:00:00.000' },
+        { business_name: 'Heat & Chill Pty', filing_number: '0001', typeofbusinessregistration: 'Domestic LLC', creationdate: '2020-01-02T00:00:00.000' },
+      ]);
+    }
+    if (url.includes('9cir-efmm')) return json([{ taxpayer_name: 'HEAT & CHILL SERVICES LLC ', sos_status_code: 'R ', secretary_of_state_sos_or_coa_file_number: '0800', taxpayer_organizational_type: 'CL' }]);
+    if (url.includes('jrea-zgmq')) return json([{ outlet_name: 'HEAT & CHILL #1', taxpayer_number: '320', outlet_permit_issue_date: '2022-04-06T00:00:00.000' }]);
+    return json([]);
+  });
+  const r = await checkName("Heat & Chill", { countries: ['US'], env: {}, domains: false });
+  const st = r.results.find((x) => x.id === 'us-state-open-data');
+  assert.equal(st.status, 'ok');
+
+  const dcCall = calls.find((c) => c.url.includes('FeatureServer/0/query'));
+  const where = new URL(dcCall.url).searchParams.get('where');
+  assert.equal(where, "UPPER(BUSINESS_NAME) LIKE '%HEAT%' AND UPPER(BUSINESS_NAME) LIKE '%CHILL%'");
+  assert.ok(!calls.find((c) => c.url.includes('maps2.dcgis') && c.init?.headers?.['X-App-Token']));
+
+  const dc = st.matches.filter((m) => m.details.state === 'DC' && m.type !== 'Trade name');
+  assert.equal(dc.find((m) => m.id === 'L1').active, true);
+  assert.equal(dc.find((m) => m.id === 'L1').details.filed, '1969-12-31');
+  assert.equal(dc.find((m) => m.id === 'L2').active, false);
+  assert.equal(st.matches.find((m) => m.type === 'Trade name').active, false, 'expired trade name is inactive');
+
+  assert.equal(st.matches.filter((m) => m.details.state === 'PA').length, 1, 'duplicates collapse');
+  const tx = st.matches.filter((m) => m.details.state === 'TX');
+  const fran = tx.find((m) => m.id === '0800');
+  assert.equal(fran.name, 'HEAT & CHILL SERVICES LLC');
+  assert.equal(fran.status, 'Revoked');
+  assert.equal(fran.active, false);
+  assert.equal(tx.find((m) => m.type === 'Sales tax permit outlet').active, true);
+});
+
+test('US open data is safe with odd input and reports an unreachable source', async () => {
+  stubFetch((url) => (url.includes('data.pa.gov') ? json({ error: true }, 500) : json([])));
+  const r = await checkName("O'Brien's; DROP", { countries: ['US'], env: {}, domains: false });
+  const st = r.results.find((x) => x.id === 'us-state-open-data');
+  assert.equal(st.status, 'ok');
+  assert.match(st.note, /PA/);
+  const paCall = calls.find((c) => c.url.includes('data.pa.gov'));
+  const where = new URL(paCall.url).searchParams.get('$where');
+  assert.ok(!where.includes("'; "), 'quotes and punctuation are stripped from LIKE words');
+});

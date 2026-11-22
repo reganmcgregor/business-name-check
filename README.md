@@ -23,7 +23,7 @@ It needs Node 20.12 or newer, has no dependencies, and runs with no API keys at 
 | United Kingdom | Companies House | Companies and LLPs | Free API key | Needs key |
 | New Zealand | NZBN register | Companies, trusts, sole traders with an NZBN | Free subscription key | Needs key (not yet run against a live key) |
 | United States | SEC EDGAR company list | SEC registrants only | Your own User-Agent string | Needs a contact string |
-| United States | NY, CO, CT and OR open data | Business registers of those four states | None | Works with no key |
+| United States | NY, CO, CT, OR, PA, DC and TX open data | Business registers of those states, plus DC trade names and Texas franchise-tax and sales-tax accounts | None | Works with no key |
 | All | Domain names (RDAP, WHOIS for .nz) | `.com`, plus `.com.au`, `.co.nz`, `.co.uk` for the countries you pick | None | Works with no key |
 
 ### What it does not cover
@@ -33,7 +33,7 @@ These registers have no open search API, so the tool prints a link for you to ch
 - **UK IPO trade marks.** The search site blocks automated access with a captcha, and there is no public API.
 - **IPONZ (NZ trade marks).** IPONZ does offer a trade mark search API (`POST /trademarksearch`), through the same MBIE developer portal as the NZBN. You subscribe with your RealMe login, and the endpoint definition is only visible once you are signed in, so it is not scripted here yet. Pull requests welcome if you have access.
 - **USPTO trade marks.** The USPTO's open APIs cover case status by serial number and bulk downloads, not name search. Its search website runs on an internal backend that is not a published API. Some third-party tools call that backend or run their own index. This tool does not, because those routes are unofficial and can change or disappear without notice. Search the USPTO by hand at the link the tool prints.
-- **Most US state registers.** There is no national US business register. The tool covers the four states that publish their register as open data (New York, Colorado, Connecticut, Oregon). Delaware, California, Texas, Florida and the rest have no free API and often use captchas, so you get a link to the NASS directory instead. OpenCorporates aggregates many state registers, but it is a paid API with internal-use licence terms, so it is not included.
+- **Most US state registers.** There is no national US business register. The tool covers the states and districts that publish business data as free open data: New York, Colorado, Connecticut, Oregon, Pennsylvania, the District of Columbia and Texas. Two of those are partial. Pennsylvania lists active registrations only, and the Texas data comes from the Comptroller (franchise-tax and sales-tax accounts), so sole proprietors, most general partnerships and assumed names are missing, and the status codes are read as A active, R revoked and F forfeited. Delaware, California, Florida and the rest have no free name-search API (most sell bulk files, or use captchas), so you get a link to the NASS directory instead. OpenCorporates aggregates many state registers, but it is a paid API with internal-use licence terms, so it is not included.
 
 Also not covered: common-law (unregistered) trade mark use, social handles, company names in countries other than the four above, and sound-alike or meaning-alike names.
 
@@ -151,7 +151,7 @@ The tool is a polite client: it waits at least 250 ms between requests to the sa
 | NZBN | Throttled per subscription. Retries on 429. |
 | IP Australia | 600 requests per minute on the base tier. Each run makes up to about 60 record fetches. |
 | RDAP and WHOIS (domains) | No published limits. A run makes about eight lookups across four registry servers. `.nz` WHOIS is for single queries only, so no bulk use. |
-| US state open data | Keyless requests are throttled per IP. Set `SOCRATA_APP_TOKEN` (free from each portal) if you hit limits. |
+| US state open data | Keyless requests to the Socrata portals are throttled per IP. Set `SOCRATA_APP_TOKEN` (free from each portal) if you hit limits. DC's ArcGIS service publishes no limit, so requests go one at a time. |
 | data.gov.au (ASIC) | No published limit. The tool makes about four requests per run. |
 
 You are responsible for using each register within its terms. In particular, do not use results to build a bulk copy of any register.

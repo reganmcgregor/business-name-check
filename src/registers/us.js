@@ -55,52 +55,127 @@ export const secEdgar = {
   },
 };
 
-// US states that publish their business register as open data (Socrata), no key needed.
-// Delaware, California, Texas, Florida and most others do not, so they are manual links.
-const STATES = [
+// US states and cities that publish their business register as open data, no key needed.
+// Delaware, California, Florida and most other states do not, so they are manual links.
+const DC_BASE = 'https://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/Business_Licensing_and_Grants_WebMercator/FeatureServer';
+const isoDate = (v) => (typeof v === 'number' ? new Date(v).toISOString().slice(0, 10) : v?.slice?.(0, 10));
+const trim = (v) => (typeof v === 'string' ? v.trim() : v);
+const TX_STATUS = { A: ['Active', true], R: ['Revoked', false], F: ['Forfeited', false] };
+
+/** Upper-case alphanumeric words, safe to put inside a LIKE pattern. */
+const likeWords = (name) => nameKey(name).split(' ').map((w) => w.toUpperCase().replace(/[^A-Z0-9]/g, '')).filter(Boolean);
+const socrataQ = (host, dataset) => ({ q, limit }) => {
+  const url = new URL(`https://${host}/resource/${dataset}.json`);
+  url.searchParams.set('$q', q);
+  url.searchParams.set('$limit', String(Math.min(Math.max(limit, 5), 50)));
+  return url.toString();
+};
+const arcgis = (layer, field, outFields) => ({ words }) => {
+  const url = new URL(`${DC_BASE}/${layer}/query`);
+  url.searchParams.set('where', words.map((w) => `UPPER(${field}) LIKE '%${w}%'`).join(' AND '));
+  url.searchParams.set('outFields', outFields);
+  url.searchParams.set('returnGeometry', 'false');
+  url.searchParams.set('resultRecordCount', '100');
+  url.searchParams.set('f', 'json');
+  return url.toString();
+};
+
+const SOURCES = [
   {
-    state: 'NY', host: 'data.ny.gov', dataset: 'n9v6-gdp6',
+    state: 'NY', url: socrataQ('data.ny.gov', 'n9v6-gdp6'),
     map: (r) => ({ name: r.current_entity_name, id: r.dos_id, type: r.entity_type, status: 'Active entity', active: true, filed: r.initial_dos_filing_date }),
   },
   {
-    state: 'CO', host: 'data.colorado.gov', dataset: '4ykn-tg5h',
+    state: 'CO', url: socrataQ('data.colorado.gov', '4ykn-tg5h'),
     map: (r) => ({ name: r.entityname, id: r.entityid, type: r.entitytype, status: r.entitystatus, active: !/dissol|withdrawn|expired|cancel|revoked|merged|inactive/i.test(r.entitystatus ?? ''), filed: r.entityformdate }),
   },
   {
-    state: 'CT', host: 'data.ct.gov', dataset: 'n7gp-d28j',
+    state: 'CT', url: socrataQ('data.ct.gov', 'n7gp-d28j'),
     map: (r) => ({ name: r.name, id: r.accountnumber, type: r.business_type, status: r.status, active: !/dissol|withdrawn|expired|cancel|revoked|merged|inactive|reservation/i.test(r.status ?? ''), filed: r.date_registration }),
   },
   {
-    state: 'OR', host: 'data.oregon.gov', dataset: 'tckn-sxa6',
+    state: 'OR', url: socrataQ('data.oregon.gov', 'tckn-sxa6'),
     map: (r) => ({ name: r.business_name, id: r.registry_number, type: r.entity_type, status: 'Active business', active: true, filed: r.registry_date, url: r.business_details?.url }),
   },
+  {
+    // Active registrations only. $q would also match officer surnames, so filter on the business name.
+    state: 'PA',
+    url: ({ words, limit }) => {
+      const url = new URL('https://data.pa.gov/resource/xvd7-5r2c.json');
+      url.searchParams.set('$where', words.map((w) => `upper(business_name) like '%${w}%'`).join(' AND '));
+      url.searchParams.set('$select', 'distinct business_name,filing_number,typeofbusinessregistration,creationdate');
+      url.searchParams.set('$limit', String(Math.min(Math.max(limit, 5), 100)));
+      return url.toString();
+    },
+    map: (r) => ({ name: r.business_name, id: r.filing_number, type: r.typeofbusinessregistration, status: 'Active registration', active: true, filed: r.creationdate }),
+  },
+  {
+    state: 'DC', source: 'DC Department of Licensing and Consumer Protection',
+    url: arcgis(0, 'BUSINESS_NAME', 'FILE_NUMBER,BUSINESS_NAME,ENTITY_STATUS,MODELTYPE,EFFECTIVE_DATE'),
+    rows: (j) => j.features?.map((f) => f.attributes) ?? [],
+    map: (r) => ({ name: r.BUSINESS_NAME, id: r.FILE_NUMBER, type: r.MODELTYPE, status: r.ENTITY_STATUS, active: /^active/i.test(r.ENTITY_STATUS ?? ''), filed: isoDate(r.EFFECTIVE_DATE) }),
+  },
+  {
+    state: 'DC', source: 'DC trade names',
+    url: arcgis(1, 'TRADE_NAME', 'FILE_NUMBER,TRADE_NAME,TRADENAME_STATUS,EFFECTIVE_DATE,TRADENAME_EXPIRATIONDATE'),
+    rows: (j) => j.features?.map((f) => f.attributes) ?? [],
+    map: (r) => ({
+      name: r.TRADE_NAME, id: r.FILE_NUMBER, type: 'Trade name', status: r.TRADENAME_STATUS,
+      active: /^active/i.test(r.TRADENAME_STATUS ?? '') && !(r.TRADENAME_EXPIRATIONDATE && r.TRADENAME_EXPIRATIONDATE < Date.now()),
+      filed: isoDate(r.EFFECTIVE_DATE),
+    }),
+  },
+  {
+    // Entities with a Texas Comptroller franchise-tax account. Not the full Secretary of State register:
+    // sole proprietors, most general partnerships and assumed names are missing.
+    state: 'TX', source: 'Texas Comptroller franchise tax',
+    url: socrataQ('data.texas.gov', '9cir-efmm'),
+    map: (r) => {
+      const code = trim(r.sos_status_code);
+      const [label, active] = TX_STATUS[code] ?? [code ? `SOS status ${code}` : 'Status not given', null];
+      return { name: trim(r.taxpayer_name), id: trim(r.secretary_of_state_sos_or_coa_file_number), type: `Franchise tax account (${trim(r.taxpayer_organizational_type) ?? 'type not given'})`, status: label, active, filed: r.sos_charter_date };
+    },
+  },
+  {
+    // Retail outlets with a sales tax permit. Adds trade names, but only for businesses that sell taxable goods.
+    state: 'TX', source: 'Texas Comptroller sales tax permits',
+    url: socrataQ('data.texas.gov', 'jrea-zgmq'),
+    map: (r) => ({ name: trim(r.outlet_name) || trim(r.taxpayer_name), id: trim(r.taxpayer_number), type: 'Sales tax permit outlet', status: 'Active permit', active: true, filed: r.outlet_permit_issue_date }),
+  },
 ];
+
+const STATE_LIST = [...new Set(SOURCES.map((s) => s.state))];
 
 export const usStateOpenData = {
   id: 'us-state-open-data',
   country: 'US',
   kind: 'business',
-  label: 'US state open data (NY, CO, CT, OR only)',
+  label: `US state open data (${STATE_LIST.join(', ')})`,
   env: [],
-  coverage: 'Four states that publish their business register as open data. Other states, including Delaware, California, Texas and Florida, are not covered.',
+  coverage: 'Seven US jurisdictions that publish business data as open data. Texas covers franchise-tax and sales-tax accounts only, not the full Secretary of State register. Delaware, California and Florida, among others, are not covered.',
   async search(name, env, { limit }) {
     const q = nameKey(name).split(' ').filter(Boolean).join(' ');
-    const jobs = STATES.map(async (s) => {
-      const url = new URL(`https://${s.host}/resource/${s.dataset}.json`);
-      url.searchParams.set('$q', q);
-      url.searchParams.set('$limit', String(Math.min(Math.max(limit, 5), 50)));
-      const headers = env.SOCRATA_APP_TOKEN ? { 'X-App-Token': env.SOCRATA_APP_TOKEN } : {};
-      const rows = (await request(url.toString(), { headers })).json();
+    const words = likeWords(name);
+    if (!words.length) return { total: 0, matches: [] };
+    const headers = env.SOCRATA_APP_TOKEN ? { 'X-App-Token': env.SOCRATA_APP_TOKEN } : {};
+    const jobs = SOURCES.map(async (s) => {
+      const res = await request(s.url({ q, words, limit }), { headers: s.state === 'DC' ? {} : headers });
+      const json = res.json();
+      if (json.error) throw new Error(json.error.message ?? 'Register returned an error');
+      const rows = s.rows ? s.rows(json) : json;
       return rows.map((r) => {
         const m = s.map(r);
-        return { ...m, url: m.url ?? null, details: { state: s.state, filed: m.filed } };
+        return { ...m, url: m.url ?? null, details: { state: s.state, source: s.source, filed: m.filed } };
       });
     });
     const settled = await Promise.allSettled(jobs);
     if (settled.every((r) => r.status === 'rejected')) throw settled[0].reason;
-    const matches = settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : [])).filter((m) => m.name);
+    const seen = new Set();
+    const matches = settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+      .filter((m) => m.name)
+      .filter((m) => { const k = `${m.details.state}|${m.details.source}|${m.id}|${m.name}`; return seen.has(k) ? false : seen.add(k); });
     matches.sort((a, b) => RANK[classify(name, a.name)] - RANK[classify(name, b.name)]);
-    const failed = settled.map((r, i) => (r.status === 'rejected' ? STATES[i].state : null)).filter(Boolean);
+    const failed = [...new Set(settled.map((r, i) => (r.status === 'rejected' ? SOURCES[i].source ?? SOURCES[i].state : null)).filter(Boolean))];
     return {
       total: matches.length,
       matches,

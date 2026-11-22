@@ -11,7 +11,7 @@ const bold = (s) => c(1, s);
 const TAG = { exact: (s) => red(bold(s)), close: yellow, related: dim };
 
 function line(m, indent) {
-  const bits = [m.status, m.type, m.id].filter(Boolean).join(' | ');
+  const bits = [m.details?.state, m.status, m.type, m.id].filter(Boolean).join(' | ');
   const label = m.match.toUpperCase() + (m.active === false ? ' (inactive)' : '');
   const out = [`${indent}${TAG[m.match](label.padEnd(7))} ${m.name}${bits ? dim(`  (${bits})`) : ''}`];
   if (m.url) out.push(`${indent}        ${dim(m.url)}`);

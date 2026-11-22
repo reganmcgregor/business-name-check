@@ -53,3 +53,12 @@ test('domains: a taken name is registered, gibberish is not found (.com, .com.au
   const free = await checkName('Zqxvlorn Quillmark Brightfen', { countries: ['AU', 'NZ', 'UK'] });
   for (const d of free.domains) assert.equal(d.status, 'not_found', d.domain);
 });
+
+test('US open data reaches every jurisdiction', { skip: !live }, async () => {
+  const r = await checkName('Starbucks', { countries: ['US'], domains: false, limit: 50 });
+  const st = r.results.find((x) => x.id === 'us-state-open-data');
+  assert.equal(st.status, 'ok', st.reason);
+  assert.ok(!st.note, st.note);
+  const seen = new Set(st.matches.map((m) => m.details.state));
+  for (const state of ['NY', 'CO', 'CT', 'OR', 'PA', 'DC', 'TX']) assert.ok(seen.has(state), `${state} returned nothing`);
+});
