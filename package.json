@@ -1,6 +1,6 @@
 {
   "name": "business-name-check",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Check whether a business or brand name is already taken on official business and trade mark registers (Australia, New Zealand, UK, US).",
   "type": "module",
   "bin": {
