@@ -220,3 +220,10 @@ test('US open data is safe with odd input and reports an unreachable source', as
   const where = new URL(paCall.url).searchParams.get('$where');
   assert.ok(!where.includes("'; "), 'quotes and punctuation are stripped from LIKE words');
 });
+
+test('US hand-check links: Florida is pre-filled and encoded, the rest are landing pages', async () => {
+  const { usManual } = await import('../src/registers/us.js');
+  const fl = usManual.find((m) => /Florida/.test(m.label));
+  assert.equal(fl.url(' Heat & Chill '), 'https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResults/EntityName/Heat%20%26%20Chill/Page1');
+  for (const m of usManual) assert.match(m.url('x'), /^https:\/\//, m.label);
+});

@@ -184,8 +184,24 @@ export const usStateOpenData = {
   },
 };
 
+// Hand-check links for states with no open API. Only Florida accepts a pre-filled name in the URL
+// (checked in a browser); the rest are landing pages where you type the name yourself. Several of
+// these sites sit behind bot protection or a captcha, so they are for people, not for scripts.
 export const usManual = [
   { label: 'USPTO trademark search (no open search API)', url: () => 'https://tmsearch.uspto.gov/search/search-information' },
-  { label: 'Delaware entity name search (captcha-protected)', url: () => 'https://icis.corp.delaware.gov/ecorp/entitysearch/namesearch.aspx' },
-  { label: 'State business register directory (NASS)', url: () => 'https://www.nass.org/business-services/corporate-registration' },
+  { label: 'Florida Sunbiz entity name search (results page)', url: (name) => `https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResults/EntityName/${encodeURIComponent(String(name).trim())}/Page1` },
+  { label: 'California business search (type the name)', url: () => 'https://bizfileonline.sos.ca.gov/search/business' },
+  { label: 'Delaware entity name search (captcha, type the name)', url: () => 'https://icis.corp.delaware.gov/ecorp/entitysearch/namesearch.aspx' },
+  { label: 'Washington business search (type the name)', url: () => 'https://ccfs.sos.wa.gov/' },
+  { label: 'Arizona entity search (type the name)', url: () => 'https://arizonabusinesscenter.azcc.gov/EntitySearch/Index' },
+  { label: 'Nevada entity search (type the name)', url: () => 'https://esos.nv.gov/EntitySearch/OnlineEntitySearch' },
+  { label: 'Georgia business search (type the name)', url: () => 'https://ecorp.sos.ga.gov/BusinessSearch' },
+  { label: 'Illinois business entity search (type the name)', url: () => 'https://apps.ilsos.gov/businessentitysearch/' },
+  { label: 'North Carolina business search (type the name)', url: () => 'https://www.sosnc.gov/online_services/search/by_title/_Business_Registration' },
+  { label: 'Ohio business search (type the name)', url: () => 'https://businesssearch.ohiosos.gov/' },
+  { label: 'Michigan business search (type the name)', url: () => 'https://mibusinessregistry.lara.state.mi.us/search/business' },
+  { label: 'New Jersey business name search (type the name)', url: () => 'https://www.njportal.com/DOR/BusinessNameSearch/Search/BusinessName' },
+  { label: 'Massachusetts corporations search (type the name)', url: () => 'https://corp.sec.state.ma.us/corpweb/CorpSearch/CorpSearch.aspx' },
+  { label: 'Virginia entity search (type the name)', url: () => 'https://cis.scc.virginia.gov/EntitySearch/Index' },
+  { label: 'Other states: directory of every state register (NASS)', url: () => 'https://www.nass.org/business-services/corporate-registration' },
 ];
