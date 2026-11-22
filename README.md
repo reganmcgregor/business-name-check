@@ -150,7 +150,7 @@ The tool is a polite client: it waits at least 250 ms between requests to the sa
 | ABN Lookup | Fair use under the terms you accept when you register for the GUID. Do not hammer it. |
 | NZBN | Throttled per subscription. Retries on 429. |
 | IP Australia | 600 requests per minute on the base tier. Each run makes up to about 60 record fetches. |
-| RDAP and WHOIS (domains) | No published limits. A run makes about eight lookups across four registry servers. `.nz` WHOIS is for single queries only, so no bulk use. |
+| RDAP and WHOIS (domains) | No published limits. A run makes about eight lookups across four registry servers. `.nz` WHOIS is for single queries only, so no bulk use. auDA (`.com.au`) rate-limits hard: repeated runs in a burst can get an IP blocked for hours, and the tool then reports that domain as "could not check". |
 | US state open data | Keyless requests to the Socrata portals are throttled per IP. Set `SOCRATA_APP_TOKEN` (free from each portal) if you hit limits. DC's ArcGIS service publishes no limit, so requests go one at a time. |
 | data.gov.au (ASIC) | No published limit. The tool makes about four requests per run. |
 
